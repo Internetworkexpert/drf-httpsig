@@ -1,0 +1,82 @@
+name: Publish drf-httpsig package
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Optional package version override for testing, e.g. 1.1.1+manualtest"
+        required: false
+        type: string
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    env:
+      AWS_REGION: us-east-1
+      CODEARTIFACT_DOMAIN: ine
+      CODEARTIFACT_DOMAIN_OWNER: "324321837501"
+      CODEARTIFACT_REPOSITORY: python
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.FRONTEND_PIPELINES_USER }}
+          aws-secret-access-key: ${{ secrets.FRONTEND_PIPELINES_SECRET }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Install Poetry
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install poetry==1.8.4
+
+      - name: Override version for manual runs
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.version != '' }}
+        run: poetry version "${{ github.event.inputs.version }}"
+
+      - name: Show package version
+        run: poetry version
+
+      - name: Build package
+        run: poetry build
+
+      - name: Get CodeArtifact token and repository endpoint
+        shell: bash
+        run: |
+          CODEARTIFACT_AUTH_TOKEN="$(aws codeartifact get-authorization-token \
+            --domain "$CODEARTIFACT_DOMAIN" \
+            --domain-owner "$CODEARTIFACT_DOMAIN_OWNER" \
+            --query authorizationToken \
+            --output text)"
+
+          CODEARTIFACT_REPOSITORY_URL="$(aws codeartifact get-repository-endpoint \
+            --domain "$CODEARTIFACT_DOMAIN" \
+            --domain-owner "$CODEARTIFACT_DOMAIN_OWNER" \
+            --repository "$CODEARTIFACT_REPOSITORY" \
+            --format pypi \
+            --query repositoryEndpoint \
+            --output text)"
+
+          echo "CODEARTIFACT_AUTH_TOKEN=$CODEARTIFACT_AUTH_TOKEN" >> "$GITHUB_ENV"
+          echo "CODEARTIFACT_REPOSITORY_URL=$CODEARTIFACT_REPOSITORY_URL" >> "$GITHUB_ENV"
+
+      - name: Configure Poetry repository
+        run: |
+          poetry config repositories.codeartifact "$CODEARTIFACT_REPOSITORY_URL"
+          poetry config http-basic.codeartifact aws "$CODEARTIFACT_AUTH_TOKEN"
+
+      - name: Publish
+        run: poetry publish --repository codeartifact --no-interaction
