@@ -1,0 +1,11 @@
+name: README Compliance
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+
+jobs:
+  readme-compliance:
+    uses: Internetworkexpert/reusable-actions/.github/workflows/readme-compliance.yml@v1
+    # MODE omitted -> inherits the README_GATE_MODE org variable (report by default)
