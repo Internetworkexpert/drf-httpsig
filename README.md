@@ -227,7 +227,7 @@ which runs when a GitHub Release is published (and can also be triggered manuall
 ## Continuous integration
 
 This repository has no automated build, test, or deploy-on-merge pipeline under
-`.github/workflows`: the only operational workflow is the release publisher
+`.github/workflows`: the only build/release workflow is the release publisher
 described above, which runs on a published GitHub Release rather than on push or
 pull request. A legacy [`.travis.yml`](.travis.yml) (Travis CI, py36–py38, running
 `setup.py test`) is still present in the tree but is not wired into GitHub Actions.
