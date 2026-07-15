@@ -33,7 +33,13 @@ implemented in `authentication.py` and covered by the test suite:
 - **On-behalf-of impersonation.** When the request carries an `On-Behalf-Of`
   header, the authenticator resolves the impersonated user via a
   `fetch_on_behalf_of_user(user_id)` hook (which you implement in your subclass)
-  and authenticates the request as that user.
+  and authenticates the request as that user. **`On-Behalf-Of` is honored
+  whenever it's present, regardless of whether it's in `required_headers`** —
+  the signature only covers the headers you list there, so unless you add
+  `On-Behalf-Of` to `required_headers`, an attacker who can add or rewrite
+  unsigned headers on an otherwise-valid signed request can set it to
+  impersonate an arbitrary user. Add `On-Behalf-Of` to `required_headers` in
+  any subclass that uses this feature.
 
 ### What the authenticator does
 
@@ -96,7 +102,8 @@ present.
 `SignatureAuthentication` is abstract: you must subclass it and implement
 `fetch_user_data()` to map an incoming key ID (and the algorithm the client claims)
 to a Django user and that user's shared secret. Implement
-`fetch_on_behalf_of_user()` as well only if you use the `On-Behalf-Of` feature.
+`fetch_on_behalf_of_user()` as well only if you use the `On-Behalf-Of` feature —
+and if you do, add `On-Behalf-Of` to `required_headers` (see the caveat above).
 
 ```python
 # my_api/auth.py
